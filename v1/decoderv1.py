@@ -1,4 +1,3 @@
-import random
 
 knownWords = {}
 availableAlpha = list("EARIOTNSLCUDPMHGBFYWKVXZJQ") # the alphabet in sorted by frequency
