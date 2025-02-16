@@ -15,12 +15,13 @@ def processContent():
             words = nltk.word_tokenize(i)
             tagged = nltk.pos_tag(words)
 
-            chunkGram = r"""Chunk: {<RB.?>*<VB.?>*<NNP>+<NN>?}""" # we're looking for parts of speach with an adverb > verb > proper noun > noun
+            chunkGram = r"""Chunk: {<.*>+}
+                                    }<VB.?|IN|DT|TO>+{""" # chink is denoted by }{, we are getting chunk and then getting rid of word in the chunk
 
             chunkParser = nltk.RegexpParser(chunkGram)
             chunked = chunkParser.parse(tagged)
 
-            chunked.draw()
+            print(chunked)
     except Exception as e:
         print(str(e))
 
