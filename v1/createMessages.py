@@ -3,25 +3,27 @@ import random
 def replaceChar(s, index, new_char):
     s[index] = new_char
 
-def processMessage(inputMessage):
-    symbolMatch = {}
-    availableAlpha = list("ABCDEFGHIJKLMNOPQRSTUVWXYZ")
+def generateCipher(inputMessage):
+    encodedLetters = {}
+    availableAlpha = list("abcdefghijklmnopqrstuvwxyz")
     outputWords = []
-    words = inputMessage.split()
-    for word in words:
+    inputWords = inputMessage.split()
+
+    for word in inputWords:
         characters = list(word)
-        for i, char in enumerate(characters):
-            if char not in symbolMatch.keys():
+        outputWord = []
+        for char in characters:
+            if char not in encodedLetters.keys():
                 randomChar = random.choice(availableAlpha)
                 while randomChar == char:
                     randomChar = random.choice(availableAlpha)
-                symbolMatch[char] = randomChar
+                encodedLetters[char] = randomChar
                 availableAlpha.remove(randomChar)
-            replaceChar(characters, i, symbolMatch[char])
-        outputWords.append("".join(characters))
+            outputWord.append(encodedLetters[char])
+        outputWords.append("".join(outputWord))
     return " ".join(outputWords)
 
 if __name__=="__main__":
-    inputMessage = input("Encrypted Message: ").upper()
-    outputMessage = processMessage(inputMessage)
+    inputMessage = input("Encrypted Message: ").lower()
+    outputMessage = generateCipher(inputMessage)
     print(outputMessage)
