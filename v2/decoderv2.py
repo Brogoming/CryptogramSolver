@@ -5,7 +5,6 @@ from sklearn.linear_model import LogisticRegression
 from sklearn.ensemble import RandomForestClassifier
 from nltk import FreqDist
 from nltk.corpus import brown as words
-from nltk.util import bigrams
 
 englishVocab = list(word.lower() for word in words.words())
 englishVocab = sorted(englishVocab, key=len)
@@ -21,14 +20,22 @@ def symbolMatchingInit(inputMessage):
         if symbol not in symbolMatch.keys():
             symbolMatch[symbol] = ""
 
-def generate_cipher():
-    alphabet = list(string.ascii_lowercase)
-    shuffled = alphabet[:]
-    random.shuffle(shuffled)
-    return dict(zip(alphabet, shuffled))
+def generateCipher(inputMessage):
+    encodedLetters = {}
+    availableAlpha = list("abcdefghijklmnopqrstuvwxyz")
+    output = []
 
-def encode_text(text, cipher):
-    return ''.join(cipher.get(c, c) for c in text.lower())
+    for i, letter in enumerate(inputMessage):
+        if letter.isalpha():
+            if letter not in encodedLetters.keys():
+                randomChar = random.choice(availableAlpha)
+                while randomChar == letter:
+                    randomChar = random.choice(availableAlpha)
+                encodedLetters[letter] = randomChar
+            output.append(encodedLetters[letter])
+        else:
+            output.append(letter)
+    return "".join(output)
 
 def createFeatureList(text, index):
     features = []
@@ -43,18 +50,18 @@ def createFeatureList(text, index):
 
     # 2. Bigram Frequencies
     bigrams = [text[i:i + 2] for i in range(len(text) - 1)]
-    bigram_freqs = FreqDist(bigrams)
+    bigramFreqs = FreqDist(bigrams)
     bigram = text[index - 1:index + 1] if index > 0 else ""
-    bigram_freq = bigram_freqs.get(bigram, 0) / len(bigrams) if len(bigrams) > 0 else 0  # Normalize bigram frequency
-    features.append(bigram_freq)
+    bigramFreq = bigramFreqs.get(bigram, 0) / len(bigrams) if len(bigrams) > 0 else 0  # Normalize bigram frequency
+    features.append(bigramFreq)
 
     # 3. Trigram Frequencies
     trigrams = [text[i:i + 3] for i in range(len(text) - 2)]
-    trigram_freqs = FreqDist(trigrams)
+    trigramFreqs = FreqDist(trigrams)
     trigram = text[index - 2:index + 2] if index > 0 else ""
-    trigram_freq = trigram_freqs.get(trigram, 0) / len(trigrams) if len(
+    trigramFreq = trigramFreqs.get(trigram, 0) / len(trigrams) if len(
         trigrams) > 0 else 0  # Normalize trigram frequency
-    features.append(trigram_freq)
+    features.append(trigramFreq)
 
     # 4. Word Shape (e.g., _e__o for "hello")
     wordStart = text.rfind(' ', 0, index) + 1
@@ -74,7 +81,7 @@ def createFeatureList(text, index):
         wordPosition = 2
     features.append(wordPosition)
 
-    # 5. Common Words Check
+    # 6. Common Words Check
     word = ''.join(c for c in text[wordStart:wordEnd] if c.isalpha()).lower()
     isCommonWord = 1 if word in freqWordDist else 0
     features.append(isCommonWord)
@@ -114,7 +121,6 @@ def processMessage(ciphertext, model):
                 decrypted.append(symbolMatch[symbol])
         else:
             decrypted.append(symbol)
-    print(symbolMatch)
     return ''.join(decrypted)
 
 def trainModel():
@@ -126,8 +132,7 @@ def trainModel():
     plaintext = "the quick brown fox jumps over the lazy dog"
 
     for _ in range(1000):  # Generate multiple samples
-        cipher = generate_cipher()
-        encoded = encode_text(plaintext, cipher)
+        encoded = generateCipher(plaintext)
 
         # For each letter in the ciphertext, treat it as a sample
         for i, letter in enumerate(encoded):
@@ -135,23 +140,21 @@ def trainModel():
                 X_train.append(createFeatureList(encoded, i))
                 y_train.append(plaintext[i])  # Corresponding plaintext letter
 
-    # clf = LogisticRegression(max_iter=1000)
     clf = RandomForestClassifier(n_jobs=-1)
     clf.fit(X_train, y_train)
     print("Training Complete")
     return clf
- 
-def message_similarity(decryptedMessage, actualMessage):
-    diff_indices = [i for i in range(len(decryptedMessage.split(" "))) if decryptedMessage[i] != actualMessage[i]]
-    return (len(decryptedMessage)-len(diff_indices)) / len(decryptedMessage)
+
+def messageSimilarity(decryptedMessage, actualMessage):
+    diffIndices = [i for i in range(len(decryptedMessage)) if decryptedMessage[i] != actualMessage[i]]
+    return (len(decryptedMessage) - len(diffIndices)) / len(decryptedMessage)
 
 if __name__ == "__main__":
     # Train the model
     clf = trainModel()
-
     # Example encrypted message
     encryptedMessage = "iwd xtezl hcksr uky qtvfp kgdc iwd abom jkn"  # "the quick brown fox jumps over the lazy dog"
     symbolMatchingInit(encryptedMessage)
     decryptedMessage = processMessage(encryptedMessage, clf)
     print("Decrypted message:", decryptedMessage)
-    print(f"Message Similarity: {message_similarity(decryptedMessage, 'the quick brown fox jumps over the lazy dog'):.2f}%")
+    print(f"Message Similarity: {messageSimilarity(decryptedMessage, 'the quick brown fox jumps over the lazy dog'):.2f}%")

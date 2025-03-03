@@ -9,19 +9,17 @@ def generateCipher(inputMessage):
     outputWords = []
     inputWords = inputMessage.split()
 
-    for word in inputWords:
-        characters = list(word)
-        outputWord = []
-        for char in characters:
-            if char not in encodedLetters.keys():
+    for i, letter in enumerate(inputMessage):
+        if letter.isalpha():
+            if letter not in encodedLetters.keys():
                 randomChar = random.choice(availableAlpha)
-                while randomChar == char:
+                while randomChar == letter:
                     randomChar = random.choice(availableAlpha)
-                encodedLetters[char] = randomChar
-                availableAlpha.remove(randomChar)
-            outputWord.append(encodedLetters[char])
-        outputWords.append("".join(outputWord))
-    return " ".join(outputWords)
+                encodedLetters[letter] = randomChar
+            outputWords.append(encodedLetters[letter])
+        else:
+            outputWords.append(letter)
+    return "".join(outputWords)
 
 if __name__=="__main__":
     inputMessage = input("Encrypted Message: ").lower()
