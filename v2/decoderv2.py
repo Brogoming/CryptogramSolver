@@ -25,16 +25,17 @@ def generateCipher(inputMessage):
     availableAlpha = list("abcdefghijklmnopqrstuvwxyz")
     output = []
 
-    for i, letter in enumerate(inputMessage):
+    for letter in inputMessage:
         if letter.isalpha():
-            if letter not in encodedLetters.keys():
-                randomChar = random.choice(availableAlpha)
-                while randomChar == letter:
-                    randomChar = random.choice(availableAlpha)
+            if letter not in encodedLetters:
+                random.shuffle(availableAlpha)  # Shuffle to improve randomness
+                randomChar = next((ch for ch in availableAlpha if ch != letter), availableAlpha[0])
                 encodedLetters[letter] = randomChar
+                availableAlpha.remove(randomChar)  # Remove assigned letter
             output.append(encodedLetters[letter])
         else:
             output.append(letter)
+
     return "".join(output)
 
 def createFeatureList(text, index):
@@ -135,9 +136,9 @@ def trainModel():
         encoded = generateCipher(plaintext)
 
         # For each letter in the ciphertext, treat it as a sample
-        for i, letter in enumerate(encoded):
+        for i, letter in enumerate(plaintext):
             if letter.isalpha():  # Only use letters as valid data points
-                X_train.append(createFeatureList(encoded, i))
+                X_train.append(createFeatureList(plaintext, i))
                 y_train.append(plaintext[i])  # Corresponding plaintext letter
 
     clf = RandomForestClassifier(n_jobs=-1)
@@ -153,7 +154,7 @@ if __name__ == "__main__":
     # Train the model
     clf = trainModel()
     # Example encrypted message
-    encryptedMessage = "iwd xtezl hcksr uky qtvfp kgdc iwd abom jkn"  # "the quick brown fox jumps over the lazy dog"
+    encryptedMessage = "fmz vjbzs lisoh osw zjssu srzi fmz rvon xsk"  # "the quick brown fox jumps over the lazy dog"
     symbolMatchingInit(encryptedMessage)
     decryptedMessage = processMessage(encryptedMessage, clf)
     print("Decrypted message:", decryptedMessage)
