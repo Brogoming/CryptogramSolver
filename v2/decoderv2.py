@@ -158,4 +158,4 @@ if __name__ == "__main__":
     symbolMatchingInit(encryptedMessage)
     decryptedMessage = processMessage(encryptedMessage, clf)
     print("Decrypted message:", decryptedMessage)
-    print(f"Message Similarity: {messageSimilarity(decryptedMessage, 'the quick brown fox jumps over the lazy dog'):.2f}%")
+    print(f"Message Similarity: {messageSimilarity(decryptedMessage.replace(" ", ""), 'the quick brown fox jumps over the lazy dog'.replace(" ", "")):.2f}%")

@@ -17,8 +17,9 @@ freqWordDist = FreqDist(brown.words())
 freqWordDist = [word[0].lower() for word, v in sorted(freqWordDist.items(), key=lambda item: item[1], reverse=True) if word.isalpha()]
 
 symbolMatch = {}
+messageResults = {}
 
-messageResults = []
+letterFreq = FreqDist("".join(englishVocab))
 
 def symbolMatchingInit(inputMessage):
     msgCopy = inputMessage.replace(" ", "")
@@ -80,12 +81,6 @@ def createFeatureList(text, index):
 
 def processMessage(ciphertext, model):
     decrypted = []
-    letterFreq = {}
-
-    # Count letter frequencies from the encrypted message to help prioritize
-    for symbol in ciphertext:
-        if symbol.isalpha():
-            letterFreq[symbol] = letterFreq.get(symbol, 0) + 1
 
     for i, symbol in enumerate(ciphertext):
         if symbol.isalpha():
@@ -93,14 +88,12 @@ def processMessage(ciphertext, model):
                 decrypted.append(symbolMatch[symbol])
             else:
                 features = createFeatureList(ciphertext, i)
-                prediction = model.predict([features])[0]
-                while prediction in list(symbolMatch.values()) or prediction == symbol:
-                    availableLetters = [c for c in string.ascii_lowercase if c not in list(symbolMatch.values())]
-
+                prediction = str(model.predict([features])[0])
+                availableLetters = [c for c in string.ascii_lowercase if c not in list(symbolMatch.values())]
+                while prediction in list(symbolMatch.values()) or prediction == symbol or prediction.isalpha() == False:
                     if availableLetters:
                         # Prioritize letters based on frequency
-                        availableLetters = sorted(availableLetters, key=lambda x: letterFreq.get(x, 0), reverse=True)
-                        prediction = random.choice(availableLetters)
+                        prediction = random.choices(list(letterFreq.keys()), list(letterFreq.values()), k=1)[0]
                     else:
                         print(f"Warning: No available letters for position {i}. Decryption may be incomplete.")
                         prediction = '?'  # Use a placeholder or fallback letter
@@ -130,8 +123,8 @@ def trainModel(loadModel = True):
                     X_train.append(createFeatureList(sent, i))
                     y_train.append(sent[i])  # Corresponding plaintext letter
 
-        clf = RandomForestClassifier(n_jobs=-1, max_samples=1000)
-        # clf = RandomForestClassifier(n_jobs=-1, random_state=24, max_features=None)
+        # clf = RandomForestClassifier(n_jobs=-1, max_samples=1000)
+        clf = RandomForestClassifier(n_jobs=-1, random_state=24, max_features=None)
         clf.fit(X_train, y_train)
         pickle.dump(clf, open(filename, 'wb'))
         print("Training Complete")
@@ -139,17 +132,28 @@ def trainModel(loadModel = True):
         clf = pickle.load(open(filename, 'rb'))
     return clf
 
-def messageSimilarity(decryptedMessage, actualMessage):
-    diffIndices = [i for i in range(len(decryptedMessage)) if decryptedMessage[i] != actualMessage[i]]
-    return ((len(decryptedMessage) - len(diffIndices)) / len(decryptedMessage)) * 100
+def storeMessages(message):
+    messagePoint = 0
+    for word in message.split(" "):
+        if word in englishVocab:
+            messagePoint += 1
+    messageResults[message] = messagePoint/len(message.split(" "))
+
+def presentNewMessage():
+    bestMessage = ""
+    bestScore = 0.0
+    for message in messageResults.keys():
+        if bestScore < messageResults[message]:
+            bestMessage = message
+            bestScore = messageResults[message]
+    print("Decrypted Message:", bestMessage, "\nMessage Score:", bestScore)
 
 if __name__ == "__main__":
-    # Train the model
-    clf = trainModel()
+    clf = trainModel(False)  # Train the model
     encryptedMessage = input("Encrypted Message: ")
-    for i in range(10):
+    for i in range(100):
         symbolMatchingInit(encryptedMessage)
         decryptedMessage = processMessage(encryptedMessage, clf)
-        messageResults.append(decryptedMessage)
-        print("Decrypted message:", decryptedMessage)
-        print(f"Message Similarity: {messageSimilarity(decryptedMessage, 'the books are on fire'):.2f}%")
+        storeMessages(decryptedMessage)
+        symbolMatch = {}
+    presentNewMessage()
