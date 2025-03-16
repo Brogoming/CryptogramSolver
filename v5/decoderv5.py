@@ -5,14 +5,15 @@ from nltk import FreqDist, bigrams, trigrams
 from nltk.corpus import brown
 import re
 import pickle
+import time
 
-englishVocab = set(word.lower() for word in brown.words() if re.search("^(?=[a-z']*$)(?=[^aeiou']*[aeiou])(?=[^bcdfghjklmnpqrstvwxyz']*[bcdfghjklmnpqrstvwxyz])[a-z']+$",word))
+englishVocab = set(word.lower() for word in brown.words() if re.search("(?=.*[aeiou])[a-z']+",word))
 englishVocab.add('a')
 englishVocab.add('i')
 englishVocab = sorted(englishVocab, key=len)
 
-freqWordDist = FreqDist(word.lower() for word in brown.words() if re.search("^(?=[a-z']*$)(?=[^aeiou']*[aeiou])(?=[^bcdfghjklmnpqrstvwxyz']*[bcdfghjklmnpqrstvwxyz])[a-z']+$",word))
-freqWordDist = [word[0].lower() for word, v in sorted(freqWordDist.items(), key=lambda item: item[1], reverse=True)]
+freqWordDist = FreqDist(word.lower() for word in brown.words() if re.search("(?=.*[aeiou])[a-z']+",word))
+freqWordDist = [word.lower() for word, v in sorted(freqWordDist.items(), key=lambda item: item[1], reverse=True)]
 
 symbolMatch = {}
 messageResults = {}
@@ -63,15 +64,11 @@ def createFeatureList(word, char):
         letterPosition = 2
     features.append(letterPosition)
 
-    # 6. Common Words Check
-    isCommonWord = 1 if word in freqWordDist else 0
-    features.append(isCommonWord)
-
     # Return the feature vector
     return features
 
 def getAvailableWords(word):
-    availWords = [t for t in englishVocab if len(t) == len(word)]
+    availWords = [t for t in freqWordDist if len(t) == len(word)]
     if any(symbol in symbolMatch.keys() for symbol in list(word)):
         for s, symbol in enumerate(word):
             if symbolMatch[symbol] != "":
@@ -83,14 +80,17 @@ def processMessage(cipherText, model):
     sortedText = sorted(cipherText.split(" "), key=len)
 
     for word in sortedText:
-        availWords = getAvailableWords(word)
-        if len(availWords) == 0:
-            print('not enough words')
-            continue
         for s, symbol in enumerate(word):
+            availWords = getAvailableWords(word)
+            # print(availWords)
+            if len(availWords) == 0:
+                # print('not enough words')
+                continue
+
             if symbol.isalpha() and symbolMatch[symbol] == '':
                 features = createFeatureList(word, symbol)
                 prediction = str(model.predict([features])[0])
+
                 availLetters = [t[s] for t in availWords if t[s].isalpha()]
                 letterFreq = FreqDist(availLetters)
                 while prediction in list(symbolMatch.values()) or prediction == symbol or not prediction.isalpha() or prediction not in availLetters:
@@ -98,8 +98,8 @@ def processMessage(cipherText, model):
                         prediction = random.choices(list(letterFreq.keys()), list(letterFreq.values()), k=1)[0]
                         letterFreq.pop(prediction)
                     else:
-                        print(f"Warning: No available letters. Decryption may be incomplete.")
-                        prediction = '?'  # Use a placeholder or fallback letter
+                        # print(f"Warning: No available letters. Decryption may be incomplete.")
+                        prediction = '_'  # Use a placeholder or fallback letter
                         break
                 symbolMatch[symbol] = str(prediction)
 
@@ -111,9 +111,9 @@ def processMessage(cipherText, model):
 
     return "".join(decrypted)
 
-def trainModel(newModel):
+def trainModel(newModel = 0):
     filename = 'RFC_model1.sav'
-    if newModel:
+    if newModel == 1:
         print("Training...")
         X_train = []
         y_train = []
@@ -132,22 +132,27 @@ def trainModel(newModel):
         clf.fit(X_train, y_train)
         pickle.dump(clf, open(filename, 'wb'))
         print("Training Complete")
-    else:
+    elif newModel == 0:
         print("Loading...")
         clf = pickle.load(open(filename, 'rb'))
         print("Loading Complete")
+    else:
+        print("Invalid Input")
+        sys.exit()
     return clf
 
-def storeMessages(message):
+def scoreMessage(decryptedMessage, encryptedMessage):
     messagePoint = 0
-    for word in message.split(" "):
+    if len(decryptedMessage) != len(encryptedMessage) or '_' in decryptedMessage or decryptedMessage in messageResults.keys():
+        return 0
+    for word in decryptedMessage.split(" "):
         if word in englishVocab:
             messagePoint += 1
-    messageResults[message] = messagePoint/len(message.split(" "))
+    return messagePoint/len(decryptedMessage.split(" "))
 
 def presentNewMessage():
     sortedMessages = sorted(messageResults.items(), key=lambda x: x[1], reverse=True)
-    print("--------------------------------Ranks Messages--------------------------------")
+    print("\n--------------------------------Ranks Messages--------------------------------")
     for i, (message, score) in enumerate(sortedMessages[:5], start=1):
         print(f"Rank {i}:")
         print(f"Decrypted Message: {message}")
@@ -160,18 +165,18 @@ def presentNewMessage():
 
 if __name__ == "__main__":
     newModel = int(input("Train Model (1) or Load Model (0): "))
-    if newModel == 0:
-        clf = trainModel(False)  # Load the model
-    elif newModel == 1:
-        clf = trainModel(True)  # Train the model
-    else:
-        print("Invalid Input")
-        sys.exit()
+    clf = trainModel(newModel)  # Load the model
+    numberSamples = int(input("How many samples would you like generated? "))
     encryptedMessage = input("Encrypted Message: ")
-    for i in range(100):
+    count = 1
+    while count <= numberSamples:
         symbolMatchingInit(encryptedMessage)
         decryptedMessage = processMessage(encryptedMessage, clf)
-        storeMessages(decryptedMessage)
+        score = scoreMessage(decryptedMessage, encryptedMessage)
+        if score >= 0.8:
+            print(f"\rSamples Done: {count/numberSamples*100}%", end="", flush=True)
+            count += 1
+            messageResults[decryptedMessage] = score
         symbolMatch = {}
     presentNewMessage()
 
