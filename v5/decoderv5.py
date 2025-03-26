@@ -22,9 +22,9 @@ def symbolMatchingInit(inputMessage):
     msgCopy = inputMessage.replace(" ", "")
     for symbol in list(msgCopy):
         if symbol not in symbolMatch.keys():
-            symbolMatch[symbol] = ""
+            symbolMatch[symbol] = "_"
 
-def createFeatureList(word, char):
+def createFeatureList(word, char, index):
     features = []
     charIndex = word.index(char)
 
@@ -56,13 +56,8 @@ def createFeatureList(word, char):
     wordShapeUnderscoreCount = wordShape.count('_')
     features.append(wordShapeUnderscoreCount)
 
-    # 5. Letter Position (First, Middle, Last)
-    letterPosition = 1  # Default to middle
-    if char == word[0]:  # First letter of the word
-        letterPosition = 0
-    elif char == word[-1]:  # Last letter of the word
-        letterPosition = 2
-    features.append(letterPosition)
+    # 5. Letter index (First, Middle, Last)
+    features.append(index)
 
     # Return the feature vector
     return features
@@ -71,15 +66,16 @@ def getAvailableWords(word):
     availWords = [t for t in freqWordDist if len(t) == len(word)]
     if any(symbol in symbolMatch.keys() for symbol in list(word)):
         for s, symbol in enumerate(word):
-            if symbolMatch[symbol] != "":
+            if symbolMatch[symbol] != "_":
                 availWords = [w for w in availWords if w[s] == symbolMatch[symbol]]
     return availWords
 
 def processMessage(cipherText, model):
     decrypted = []
-    sortedText = sorted(cipherText.split(" "), key=len)
+    message = cipherText.split(" ")
+    random.shuffle(message)
 
-    for word in sortedText:
+    for word in message:
         for s, symbol in enumerate(word):
             availWords = getAvailableWords(word)
             # print(availWords)
@@ -87,8 +83,8 @@ def processMessage(cipherText, model):
                 # print('not enough words')
                 continue
 
-            if symbol.isalpha() and symbolMatch[symbol] == '':
-                features = createFeatureList(word, symbol)
+            if symbol.isalpha() and symbolMatch[symbol] == '_':
+                features = createFeatureList(word, symbol, s)
                 prediction = str(model.predict([features])[0])
 
                 availLetters = [t[s] for t in availWords if t[s].isalpha()]
@@ -109,6 +105,7 @@ def processMessage(cipherText, model):
         else:
             decrypted.append(symbol)
 
+    # print("".join(decrypted))
     return "".join(decrypted)
 
 def trainModel(newModel = 0):
@@ -123,9 +120,9 @@ def trainModel(newModel = 0):
 
         for sent in sents:  # Generate multiple samples
             for i, word in enumerate(sent.split(" ")):
-                for letter in word:
+                for l, letter in enumerate(word):
                     if letter.isalpha():  # Only use letters as valid data points
-                        X_train.append(createFeatureList(word, letter))
+                        X_train.append(createFeatureList(word, letter, l))
                         y_train.append(letter)  # Corresponding plaintext letter
 
         clf = RandomForestClassifier(n_jobs=-1, n_estimators=1000, random_state=500, max_features=None)
@@ -143,7 +140,7 @@ def trainModel(newModel = 0):
 
 def scoreMessage(decryptedMessage, encryptedMessage):
     messagePoint = 0
-    if len(decryptedMessage) != len(encryptedMessage) or '_' in decryptedMessage or decryptedMessage in messageResults.keys():
+    if len(decryptedMessage) != len(encryptedMessage) or '_' in decryptedMessage:
         return 0
     for word in decryptedMessage.split(" "):
         if word in englishVocab:
@@ -182,3 +179,4 @@ if __name__ == "__main__":
 
     # kpf jccmy bif cu oeif
     # p yxx dprexe ar uv spre
+    # u kqudn kqc wcjk lhjjuwac hvkyhoc qfj bck kh wc jccd
