@@ -109,7 +109,7 @@ def processMessage(cipherText, model):
     return "".join(decrypted)
 
 def trainModel(newModel = 0):
-    filename = 'RFC_model1.sav'
+    filename = 'RFC_model2.sav'
     if newModel == 1:
         print("Training...")
         X_train = []

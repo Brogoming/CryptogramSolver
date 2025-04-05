@@ -1,6 +1,6 @@
 import random
-import sys
-from sklearn.ensemble import RandomForestClassifier
+from sklearn.ensemble import RandomForestClassifier, GradientBoostingClassifier
+from sklearn.linear_model import LogisticRegression
 from nltk import FreqDist, bigrams, trigrams
 from nltk.corpus import brown
 import re
@@ -14,14 +14,13 @@ englishVocab = sorted(englishVocab, key=len)
 freqWordDist = FreqDist(word.lower() for word in brown.words() if re.search("(?=.*[aeiou])[a-z']+",word))
 freqWordDist = [word.lower() for word, v in sorted(freqWordDist.items(), key=lambda item: item[1], reverse=True)]
 
-symbolMatch = {}
-messageResults = {}
-
 def symbolMatchingInit(inputMessage):
+    symbolMatch = {}
     msgCopy = inputMessage.replace(" ", "")
     for symbol in list(msgCopy):
         if symbol not in symbolMatch.keys():
             symbolMatch[symbol] = "_"
+    return symbolMatch
 
 def createFeatureList(word, char, index):
     features = []
@@ -61,7 +60,7 @@ def createFeatureList(word, char, index):
     # Return the feature vector
     return features
 
-def getAvailableWords(word):
+def getAvailableWords(word, symbolMatch):
     availWords = [t for t in freqWordDist if len(t) == len(word)]
     if any(symbol in symbolMatch.keys() for symbol in list(word)):
         for s, symbol in enumerate(word):
@@ -70,16 +69,15 @@ def getAvailableWords(word):
     return availWords
 
 def processMessage(cipherText, model):
+    symbolMatch = symbolMatchingInit(cipherText)
     decrypted = []
     message = cipherText.split(" ")
     random.shuffle(message)
 
     for word in message:
         for s, symbol in enumerate(word):
-            availWords = getAvailableWords(word)
-            # print(availWords)
+            availWords = getAvailableWords(word, symbolMatch)
             if len(availWords) == 0:
-                # print('not enough words')
                 continue
 
             if symbol.isalpha() and symbolMatch[symbol] == '_':
@@ -93,7 +91,6 @@ def processMessage(cipherText, model):
                         prediction = random.choices(list(letterFreq.keys()), list(letterFreq.values()), k=1)[0]
                         letterFreq.pop(prediction)
                     else:
-                        # print(f"Warning: No available letters. Decryption may be incomplete.")
                         prediction = '_'  # Use a placeholder or fallback letter
                         break
                 symbolMatch[symbol] = str(prediction)
@@ -104,38 +101,39 @@ def processMessage(cipherText, model):
         else:
             decrypted.append(symbol)
 
-    # print("".join(decrypted))
     return "".join(decrypted)
 
-def trainModel(newModel = 0):
-    filename = 'RFC_model1.sav'
-    if newModel == 1:
-        print("Training...")
-        X_train = []
-        y_train = []
+def trainModel(modelName, modelType, nEstimators, randomness, numSent):
+    X_train = []
+    y_train = []
+    model = None
 
-        # Create training data using random ciphers
-        sents = [" ".join(s).lower() for s in brown.sents()]
+    # Create training data using random ciphers
+    sents = [" ".join(s).lower() for s in brown.sents()]
+    if len(sents) != numSent:
+        sents = sents[:numSent]
 
-        for sent in sents:  # Generate multiple samples
-            for i, word in enumerate(sent.split(" ")):
-                for l, letter in enumerate(word):
-                    if letter.isalpha():  # Only use letters as valid data points
-                        X_train.append(createFeatureList(word, letter, l))
-                        y_train.append(letter)  # Corresponding plaintext letter
+    for sent in sents:  # Generate multiple samples
+        for i, word in enumerate(sent.split(" ")):
+            for l, letter in enumerate(word):
+                if letter.isalpha():  # Only use letters as valid data points
+                    X_train.append(createFeatureList(word, letter, l))
+                    y_train.append(letter)  # Corresponding plaintext letter
 
-        clf = RandomForestClassifier(n_jobs=-1, n_estimators=1000, random_state=500, max_features=None)
-        clf.fit(X_train, y_train)
-        pickle.dump(clf, open(filename, 'wb'))
-        print("Training Complete")
-    elif newModel == 0:
-        print("Loading...")
-        clf = pickle.load(open(filename, 'rb'))
-        print("Loading Complete")
-    else:
-        print("Invalid Input")
-        sys.exit()
-    return clf
+    if modelType == 'RandomForestClassifier':
+        model = RandomForestClassifier(n_jobs=-1, n_estimators=nEstimators, random_state=randomness, max_features=None)
+    elif modelType == 'GradientBoostingClassifier':
+        model = GradientBoostingClassifier(n_estimators=nEstimators, random_state=randomness, max_features=None)
+    elif modelType == 'LogisticRegression':
+        model = LogisticRegression(n_jobs=-1, max_iter=nEstimators, random_state=randomness)
+
+    model.fit(X_train, y_train)
+    pickle.dump(model, open(f'{modelName}.sav', 'wb'))
+    return model
+
+def loadModel(modelName):
+    model = pickle.load(open(modelName, 'rb'))
+    return model
 
 def scoreMessage(decryptedMessage, encryptedMessage):
     messagePoint = 0
@@ -145,36 +143,6 @@ def scoreMessage(decryptedMessage, encryptedMessage):
         if word in englishVocab:
             messagePoint += 1
     return messagePoint/len(decryptedMessage.split(" "))
-
-def presentNewMessage():
-    sortedMessages = sorted(messageResults.items(), key=lambda x: x[1], reverse=True)
-    print("\n--------------------------------Ranks Messages--------------------------------")
-    for i, (message, score) in enumerate(sortedMessages[:5], start=1):
-        print(f"Rank {i}:")
-        print(f"Decrypted Message: {message}")
-        print(f"Message Score: {score}\n")
-
-    if (input("Do you want to see the other results? (Y/N): ").upper() == 'Y'):
-        print("--------------------------------Other Messages--------------------------------")
-        for i, (message, score) in enumerate(sortedMessages, start=1):
-            print("Decrypted Message:", message, "\nMessage Score:", score, "\n")
-
-if __name__ == "__main__":
-    newModel = int(input("Train Model (1) or Load Model (0): "))
-    clf = trainModel(newModel)  # Load the model
-    numberSamples = int(input("How many samples would you like generated? "))
-    encryptedMessage = input("Encrypted Message: ")
-    count = 1
-    while count <= numberSamples:
-        symbolMatchingInit(encryptedMessage)
-        decryptedMessage = processMessage(encryptedMessage, clf)
-        score = scoreMessage(decryptedMessage, encryptedMessage)
-        if score >= 0.8:
-            print(f"\rSamples Done: {count/numberSamples*100}%", end="", flush=True)
-            count += 1
-            messageResults[decryptedMessage] = score
-        symbolMatch = {}
-    presentNewMessage()
 
     # kpf jccmy bif cu oeif
     # p yxx dprexe ar uv spre
