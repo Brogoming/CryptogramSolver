@@ -6,11 +6,12 @@ from pathlib import Path
 model = None
 
 def loadModelAction():
-    global model  # Use the global model variable
+    global model
     savedModel = savedModels.get()
+    modelPath = modelsDir / savedModel  # Load from 'models' folder
     loadMessage.configure(text='Loading...', bg='lightyellow', width=100, padx=15)
     root.update_idletasks()
-    model = loadModel(savedModel)
+    model = loadModel(modelPath)
     loadMessage.configure(text='Load Complete', bg='lightgreen', width=100, padx=15)
     root.update_idletasks()
 
@@ -25,6 +26,8 @@ def trainModelAction():
     root.update_idletasks()
     model = trainModel(modelName, modelType, nEstimators, randomness, numSent)
     loadMessage.configure(text='Training Complete', bg='lightgreen', width=100, padx=15)
+    fileList = [f.name for f in modelsDir.glob('*.sav')]
+    savedModels.configure(values=fileList)
     root.update_idletasks()
 
 def solveMessageAction():
@@ -120,16 +123,19 @@ nEstimatorsVar = StringVar(value="100", name="nEstimators")
 nEstimatorsVar.trace_add("write", disableTraining)
 nEstimatorsField = Entry(root, textvariable=nEstimatorsVar)
 
-trainModelButton = Button(root, text='Train Model', width=30, bg="blue", foreground="white", command=trainModelAction, border=5)
+trainModelButton = Button(root, text='Train Model', width=30, bg="blue", foreground="white", command=trainModelAction, border=4)
 
 ## Load Model
 currentDir = Path(__file__).parent
-fileList = [f.name for f in currentDir.glob('*.sav')]
+modelsDir = currentDir / 'models'
+modelsDir.mkdir(exist_ok=True)  # Make sure the folder exists
+
+fileList = [f.name for f in modelsDir.glob('*.sav')]
 savedModels = Combobox(root, values=fileList)
 savedModels.set("")
 savedModels.bind("<<ComboboxSelected>>", selectSavedModel)
 
-loadModelButton = Button(root, state=DISABLED, text='Load Model', width=30, bg="red", foreground="black", command=loadModelAction, border=5)
+loadModelButton = Button(root, state=DISABLED, text='Load Model', width=30, bg="red", foreground="black", command=loadModelAction, border=4)
 loadMessage = Message(root, text='No Model', bg='pink', width=100)
 
 ## Decrypt Message
@@ -144,7 +150,7 @@ numResultsVar = StringVar(value="1", name="numResults")
 numResultsVar.trace_add("write", disableDecoder)
 numResultsField = Entry(root, textvariable=numResultsVar)
 
-decryptButton = Button(root, state=DISABLED, text='Decrypt Message', width=30, bg="green", foreground="black", command=solveMessageAction, border=5)
+decryptButton = Button(root, state=DISABLED, text='Decrypt Message', width=30, bg="green", foreground="black", command=solveMessageAction, border=4)
 
 # Place Widgets
 modelTypeBox.grid(row=0, column=1)  # model type

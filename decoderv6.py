@@ -128,11 +128,11 @@ def trainModel(modelName, modelType, nEstimators, randomness, numSent):
         model = LogisticRegression(n_jobs=-1, max_iter=nEstimators, random_state=randomness)
 
     model.fit(X_train, y_train)
-    pickle.dump(model, open(f'{modelName}.sav', 'wb'))
+    pickle.dump(model, open(f'models/{modelName}.sav', 'wb'))
     return model
 
-def loadModel(modelName):
-    model = pickle.load(open(modelName, 'rb'))
+def loadModel(modelFile):
+    model = pickle.load(open(modelFile, 'rb'))
     return model
 
 def scoreMessage(decryptedMessage, encryptedMessage):
