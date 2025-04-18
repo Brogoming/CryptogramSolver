@@ -23,9 +23,9 @@ The top section allows the user to create a ML model. There are 5 settings that 
 
 - **Model Type** - There are 3 model types to choose from: Random Forest Classifier, Logistic Regression, and Gradient Boosting Classifier.
 - **Model Name** - Name of the model you want to save. This saves the model in the models folder.
-- **Number of Sentences** - The number of sentences to train on.
-- **Randomness** - How random the model is when being trained.
-- **N Estimators/Max Iterations** - If the model type is Logistic Regression you'll be configuring Max Iterations. If it's the other two you'll be configuring N Estimators.
+- **Number of Sentences** - The number of sentences to train on. No more than 57340 sentences.
+- **Randomness** - How random the model is when being trained. 
+- **N Estimators/Max Iterations** - If the model type is Logistic Regression you'll be configuring Max Iterations. If it's the other two you'll be configuring N Estimators. No more than 10000
 
 Once the settings are set you can click on the **Train Model** button. Depending on the settings this might take a while. The high the settings the slower it is to train.
 The lower the settings the faster it is to train. This can have varying results when trying to decode an encrypted message.
@@ -68,4 +68,4 @@ you can run the createMessages.py file and it will generate 100 encrypted messag
 real message given.
 
 ## Developer
-[Dakota Gullicksen](https://www.linkedin.com/in/dakota-w-gullicksen/)
+Linkedin: [Dakota Gullicksen](https://www.linkedin.com/in/dakota-w-gullicksen/)
